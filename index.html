@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Para ti ❤️</title>
   <meta name="description" content="Sorpresita interactiva con fotos y frases."/>
   <style>
@@ -24,23 +24,23 @@
                         to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) } }
 
     /* Escena 3D */
-    .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:900px; z-index:1 }
+    .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:950px; z-index:1 }
     .cloud{
       position:relative; transform-style:preserve-3d;
-      transform: translateY(-3vh);
+      transform: translateY(-2vh);
       animation:spin 55s linear infinite;
     }
-    @keyframes spin{ from{ transform:translateY(-3vh) rotateX(4deg) rotateY(0) }
-                     to{   transform:translateY(-3vh) rotateX(4deg) rotateY(360deg) } }
+    @keyframes spin{ from{ transform:translateY(-2vh) rotateX(4deg) rotateY(0) }
+                     to{   transform:translateY(-2vh) rotateX(4deg) rotateY(360deg) } }
 
-    /* Frases (NO se tocan) */
+    /* Frases (NO tocar) */
     .phrase{
       position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.92;
       text-shadow:0 0 12px rgba(140,200,255,.25);
       font-size: clamp(12px, 2.2vw, 18px);
     }
 
-    /* Fotos (tamaño por variable --img) */
+    /* Fotos */
     .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
     .ring img{
       width:var(--img); height:var(--img); object-fit:cover; border-radius:18px;
@@ -48,7 +48,7 @@
       background:#111; will-change: transform;
       animation: bob 4s ease-in-out infinite;
     }
-    @keyframes bob{ 0%,100%{ transform:translateZ(0) } 50%{ transform:translateZ(6px) } }
+    @keyframes bob{ 0%,100%{ transform:translateZ(0) } 50%{ transform:translateZ(7px) } }
 
     /* HUD */
     .hud{ position:fixed; inset:0; display:grid; place-items:center; z-index:2 }
@@ -92,7 +92,7 @@
     // ======= PERSONALIZA AQUI =======
     const FOTOS = [
       'fotos/1.jpg','fotos/2.jpg','fotos/3.jpg',
-      'fotos/4.jpg','fotos/5.jpg','fotos/6.png.jpg' // si este nombre no existe, el script lo omite
+      'fotos/4.jpg','fotos/5.jpg','fotos/6.jpg'
     ];
 
     const FRASES = [
@@ -131,7 +131,7 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // Frases (igual que antes)
+    // ===== Frases (NO modificar) =====
     const cloud = document.getElementById('cloud');
     (function placePhrases(){
       const R = Math.min(innerWidth, innerHeight) * 0.46;
@@ -149,82 +149,56 @@
       }
     })();
 
-    // ============ NUEVO LAYOUT DE FOTOS (SIN SOLAPES) ============
+    // ===== DISTRIBUCIÓN EN HÉLICE (espacio completo, sin solapes) =====
     const ring = document.getElementById('ring');
+    const PHI = Math.PI*(3 - Math.sqrt(5)); // ángulo áureo
 
     function layoutPhotos(){
-      // limpiar
       ring.innerHTML = '';
 
       const N = FOTOS.length;
+      const portrait = innerHeight >= innerWidth; // formato celular vertical
       const minSide = Math.min(innerWidth, innerHeight);
 
-      // tamaño ideal por cantidad y pantalla (con límites)
-      const ideal = Math.min(130, Math.max(78, Math.floor(minSide / (Math.sqrt(N)*1.15 + 2))));
-      document.documentElement.style.setProperty('--img', ideal+'px');
+      // tamaño base (se reajusta para no encimar)
+      let baseSize = portrait ? Math.min(100, Math.max(68, Math.floor(minSide/5)))
+                              : Math.min(120, Math.max(78, Math.floor(minSide/6)));
 
-      // cilindro
-      const baseR = Math.max(160, Math.floor(minSide * 0.28));
-      const verticalSpace = Math.min(innerHeight*0.52, ideal * 1.6 * Math.max(2, Math.ceil(N/6)));
-      const topY = -verticalSpace/2, bottomY = verticalSpace/2;
+      // radio y altura de la “columna”
+      const r = portrait ? Math.max(130, innerWidth * 0.34) : Math.max(160, minSide * 0.30);
+      const fullH = portrait ? innerHeight * 0.78 : innerHeight * 0.62; // ocupar más alto en móvil
 
-      // decidimos cuántos anillos caben verticalmente
-      const ringGap = ideal * 1.25; // separación vertical entre anillos
-      const ringsCount = Math.max(2, Math.min(6, Math.floor(verticalSpace / ringGap)));
-      const rings = [];
+      // si hay muchas fotos, reducir tamaño para que el arco mínimo no se solape
+      const minArc = 1.28; // seguridad
+      const maxByArc = Math.floor((2*Math.PI*r) / (baseSize*minArc));
+      const scaleByArc = Math.min(1, maxByArc / Math.max(1,N));
+      baseSize = Math.floor(baseSize * Math.max(0.65, scaleByArc));
 
-      for(let i=0;i<ringsCount;i++){
-        const t = (ringsCount===1)?0.5 : i/(ringsCount-1);
-        const y = topY + t * (bottomY - topY);
-        // alterna radios sutilmente para que desde cámara no se encimen
-        const r = baseR * (1 + 0.06 * Math.sin(i));
-        rings.push({y,r,items:0});
-      }
+      document.documentElement.style.setProperty('--img', baseSize+'px');
 
-      // capacidad por anillo según arco mínimo (no solapar)
-      const minArcFactor = 1.25; // 1.25x del ancho
-      rings.forEach(rg=>{
-        const circumference = 2*Math.PI*rg.r;
-        rg.capacity = Math.max(3, Math.floor(circumference / (ideal*minArcFactor)));
-      });
-
-      // repartir fotos equilibrado
-      let idx = 0;
-      for(const foto of FOTOS){
-        // escoger anillo con menor carga relativa
-        let target = rings[0], best = Infinity;
-        for(const rg of rings){
-          const load = rg.items / rg.capacity;
-          if(load < best){ best = load; target = rg; }
-        }
-        const order = target.items; target.items++;
-
-        const angStep = (2*Math.PI) / target.capacity;
-        const ang = order * angStep + (best===0? Math.PI/ (idx+2) : 0);
-
-        const x = Math.cos(ang)*target.r;
-        const z = Math.sin(ang)*target.r;
+      for(let i=0;i<N;i++){
+        const t = (N<=1)?0.5 : i/(N-1);                  // 0..1 vertical
+        const ang = i * PHI;                              // giro áureo
+        const y   = (t - 0.5) * fullH;                    // de -H/2 a +H/2
+        const rJ  = r * (1 + 0.08*Math.sin(i*0.7));       // ligera variación
+        const x   = Math.cos(ang) * rJ;
+        const z   = Math.sin(ang) * rJ;
 
         const img = new Image();
-        img.src = foto; img.alt = 'foto';
-        img.onerror = ()=> img.remove(); // si falta una imagen, se omite sin romper
-        img.style.transform = `translate3d(${x}px, ${target.y}px, ${z}px) rotateY(${ang}rad)`;
+        img.src = FOTOS[i]; img.alt = 'foto';
+        img.onerror = ()=> img.remove();
+        img.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${Math.atan2(z,x)}rad)`;
         ring.appendChild(img);
-
-        idx++;
       }
     }
 
     // Giro suave
     let ry=0; setInterval(()=>{ ry+=.03;
-      cloud.style.transform=`translateY(-3vh) rotateX(4deg) rotateY(${ry}rad)`; }, 50);
+      cloud.style.transform=`translateY(-2vh) rotateX(4deg) rotateY(${ry}rad)`; }, 50);
 
     // Inicializar + responsive sin recargar
     layoutPhotos();
-    addEventListener('resize', ()=>{
-      // recalcular sin perder la animación ni recargar
-      layoutPhotos();
-    });
+    addEventListener('resize', layoutPhotos);
   </script>
 </body>
 </html>
