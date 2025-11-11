@@ -16,22 +16,20 @@
       overflow:hidden;
     }
 
-    /* Corazones */
     .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0 }
     .heart{ position:absolute; font-size:14px; opacity:.35; animation:floatUp linear infinite;
       filter: drop-shadow(0 0 6px rgba(255,56,120,.35)); }
     @keyframes floatUp{ from{ transform:translateY(110vh) scale(.8) rotate(0) }
                         to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) } }
 
-    /* Escena 3D */
     .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:950px; z-index:1 }
     .cloud{
       position:relative; transform-style:preserve-3d;
-      transform: translateY(-2vh);
+      transform: translateY(-2vh) rotateY(18deg); /* inclinamos para que no se vea en columna */
       animation:spin 55s linear infinite;
     }
-    @keyframes spin{ from{ transform:translateY(-2vh) rotateX(4deg) rotateY(0) }
-                     to{   transform:translateY(-2vh) rotateX(4deg) rotateY(360deg) } }
+    @keyframes spin{ from{ transform:translateY(-2vh) rotateX(4deg) rotateY(18deg) }
+                     to{   transform:translateY(-2vh) rotateX(4deg) rotateY(378deg) } }
 
     /* Frases (NO tocar) */
     .phrase{
@@ -50,7 +48,6 @@
     }
     @keyframes bob{ 0%,100%{ transform:translateZ(0) } 50%{ transform:translateZ(7px) } }
 
-    /* HUD */
     .hud{ position:fixed; inset:0; display:grid; place-items:center; z-index:2 }
     .card{
       background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
@@ -65,10 +62,7 @@
       box-shadow:0 10px 30px rgba(255,59,123,.35)
     }
     .hide{ display:none }
-
-    @media (max-width:480px){
-      .title{ font-size:22px }
-    }
+    @media (max-width:480px){ .title{ font-size:22px } }
   </style>
 </head>
 <body>
@@ -131,7 +125,7 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // ===== Frases (NO modificar) =====
+    // Frases (intactas)
     const cloud = document.getElementById('cloud');
     (function placePhrases(){
       const R = Math.min(innerWidth, innerHeight) * 0.46;
@@ -149,52 +143,52 @@
       }
     })();
 
-    // ===== DISTRIBUCIÓN EN HÉLICE (espacio completo, sin solapes) =====
+    // ===== FOTOS: DISTRIBUCIÓN "FIBONACCI SPHERE" =====
     const ring = document.getElementById('ring');
-    const PHI = Math.PI*(3 - Math.sqrt(5)); // ángulo áureo
+    const GOLD = Math.PI * (3 - Math.sqrt(5)); // golden angle
 
     function layoutPhotos(){
       ring.innerHTML = '';
-
       const N = FOTOS.length;
-      const portrait = innerHeight >= innerWidth; // formato celular vertical
       const minSide = Math.min(innerWidth, innerHeight);
 
-      // tamaño base (se reajusta para no encimar)
-      let baseSize = portrait ? Math.min(100, Math.max(68, Math.floor(minSide/5)))
-                              : Math.min(120, Math.max(78, Math.floor(minSide/6)));
+      // radio de la esfera (más grande en móvil para llenar alto)
+      const R = (innerHeight > innerWidth) ? innerWidth * 0.45 : minSide * 0.42;
 
-      // radio y altura de la “columna”
-      const r = portrait ? Math.max(130, innerWidth * 0.34) : Math.max(160, minSide * 0.30);
-      const fullH = portrait ? innerHeight * 0.78 : innerHeight * 0.62; // ocupar más alto en móvil
-
-      // si hay muchas fotos, reducir tamaño para que el arco mínimo no se solape
-      const minArc = 1.28; // seguridad
-      const maxByArc = Math.floor((2*Math.PI*r) / (baseSize*minArc));
-      const scaleByArc = Math.min(1, maxByArc / Math.max(1,N));
-      baseSize = Math.floor(baseSize * Math.max(0.65, scaleByArc));
-
-      document.documentElement.style.setProperty('--img', baseSize+'px');
+      // tamaño = distancia media entre puntos en la esfera (evita solapes)
+      const meanChord = 2 * R * Math.sin(Math.sqrt(4*Math.PI/N)/2);
+      const size = Math.max(62, Math.min(130, Math.floor(meanChord * 0.70)));
+      document.documentElement.style.setProperty('--img', size+'px');
 
       for(let i=0;i<N;i++){
-        const t = (N<=1)?0.5 : i/(N-1);                  // 0..1 vertical
-        const ang = i * PHI;                              // giro áureo
-        const y   = (t - 0.5) * fullH;                    // de -H/2 a +H/2
-        const rJ  = r * (1 + 0.08*Math.sin(i*0.7));       // ligera variación
-        const x   = Math.cos(ang) * rJ;
-        const z   = Math.sin(ang) * rJ;
+        // puntos casi uniformes sobre esfera
+        const t = (i + 0.5) / N;
+        const y = 1 - 2*t;                           // -1..1
+        const r = Math.sqrt(1 - y*y);                // radio en ese "paralelo"
+        const theta = i * GOLD;
+
+        const x = Math.cos(theta) * r;
+        const z = Math.sin(theta) * r;
+
+        // escalamos al radio R y abrimos un poco en vertical para móvil
+        const yWorld = y * R * (innerHeight > innerWidth ? 1.15 : 0.9);
+        const xWorld = x * R;
+        const zWorld = z * R;
 
         const img = new Image();
         img.src = FOTOS[i]; img.alt = 'foto';
         img.onerror = ()=> img.remove();
-        img.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${Math.atan2(z,x)}rad)`;
+
+        // orientar hacia el centro (ligeramente) para un look bonito
+        const yaw = Math.atan2(zWorld, xWorld);
+        img.style.transform = `translate3d(${xWorld}px, ${yWorld}px, ${zWorld}px) rotateY(${yaw}rad)`;
         ring.appendChild(img);
       }
     }
 
     // Giro suave
     let ry=0; setInterval(()=>{ ry+=.03;
-      cloud.style.transform=`translateY(-2vh) rotateX(4deg) rotateY(${ry}rad)`; }, 50);
+      cloud.style.transform=`translateY(-2vh) rotateX(4deg) rotateY(${18+ry*57.2958/1}deg)`; }, 50);
 
     // Inicializar + responsive sin recargar
     layoutPhotos();
