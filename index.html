@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Para ti ❤️</title>
+  <meta name="description" content="Sorpresita interactiva con fotos y frases."/>
+  <style>
+    :root{ --bg:#05070d; --txt:#e6f6ff; --muted:#8aa1b1 }
+    *{ box-sizing:border-box }
+    html,body{ height:100%; margin:0 }
+    body{
+      font-family:Poppins,Segoe UI,Arial,sans-serif;
+      color:var(--txt);
+      background: radial-gradient(1200px 800px at 50% -10%, #0f1424 0%, #080a12 40%, #05070d 100%);
+      overflow:hidden;
+    }
+    /* Fondo corazoncitos */
+    .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0 }
+    .heart{
+      position:absolute; font-size:14px; opacity:.35;
+      animation:floatUp linear infinite;
+      filter: drop-shadow(0 0 6px rgba(255,56,120,.35));
+    }
+    @keyframes floatUp{
+      from{ transform:translateY(110vh) scale(.8) rotate(0) }
+      to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) }
+    }
+    /* Escena 3D */
+    .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:900px; z-index:1 }
+    .cloud{ position:relative; transform-style:preserve-3d; animation:spin 55s linear infinite }
+    @keyframes spin{ from{ transform:rotateX(10deg) rotateY(0) } to{ transform:rotateX(10deg) rotateY(360deg) } }
+    .phrase{
+      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.9;
+      text-shadow:0 0 12px rgba(140,200,255,.25);
+      /* Ajuste para que quepan más frases y se adapten a móvil */
+      font-size: clamp(12px, 2.2vw, 18px);
+    }
+
+    /* Carrusel de fotos */
+    .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
+    .ring img{
+      width:120px; height:120px; object-fit:cover; border-radius:18px;
+      border:2px solid rgba(255,255,255,.15); box-shadow:0 10px 30px rgba(0,0,0,.35);
+      background:#111; /* por si no carga la imagen */
+    }
+
+    /* HUD */
+    .hud{ position:fixed; inset:0; display:grid; place-items:center; z-index:2 }
+    .card{
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
+      backdrop-filter:blur(10px); border-radius:22px; padding:22px 20px;
+      box-shadow:0 20px 60px rgba(0,0,0,.4); text-align:center; max-width:440px
+    }
+    .title{ font-size:26px; margin:0 0 6px }
+    .subtitle{ margin:0 0 14px; color:var(--muted) }
+    .btn{
+      cursor:pointer; border:0; border-radius:14px; padding:12px 18px; font-weight:700;
+      background:linear-gradient(135deg,#ff8fb3,#ff3b7b); color:#fff;
+      box-shadow:0 10px 30px rgba(255,59,123,.35)
+    }
+    .hide{ display:none }
+    @media (max-width:480px){ .ring img{ width:92px; height:92px } .title{ font-size:22px } }
+  </style>
+</head>
+<body>
+  <!-- Corazones -->
+  <div class="hearts" id="hearts"></div>
+
+  <!-- Escena 3D -->
+  <div class="space">
+    <div class="cloud" id="cloud">
+      <div class="ring" id="ring"></div>
+    </div>
+  </div>
+
+  <!-- Pantalla inicial -->
+  <div class="hud" id="hud">
+    <div class="card">
+      <h1 class="title">Toca para empezar ✨</h1>
+      <p class="subtitle">He preparado algo para ti 💖</p>
+      <button class="btn" id="btnStart">Empezar</button>
+    </div>
+  </div>
+
+  <script>
+    // ======= PERSONALIZA AQUI =======
+    const FOTOS = [
+      'fotos/1.jpg','fotos/2.jpg','fotos/3.jpg',
+      'fotos/4.jpg','fotos/5.jpg','fotos/6.jpg'
+    ];
+
+    const FRASES = [
+      'Eres lo más bonito de mi vida',
+      'Te elijo hoy, mañana y siempre',
+      'Gracias por quedarte',
+      'Cada latido dice tu nombre',
+      'Mi lugar favorito es a tu lado',
+      'Contigo todo tiene sentido',
+      'Tu sonrisa es mi suerte',
+      'Me enamoro de ti todos los días',
+      'Eres mi hogar',
+      'Somos equipo',
+      'Tu abrazo es mi paz',
+      'Eres mi sueño despierto',
+      'A tu lado soy mejor',
+      'Quédate cerca',
+      'Eres mi presente y mi futuro',
+      'Me haces feliz',
+      'Siempre tú',
+      'Qué lindo coincidir contigo',
+      'Mi plan favorito: nosotros',
+      'Eres mi milagro',
+      'Te pienso, te extraño, te amo',
+      'Me das alas',
+      'Eres mi mejor casualidad',
+      'Más que amor: tú',
+      'Tú y yo contra el mundo',
+      'Te escojo mil veces',
+      'Eres mi personita',
+      'Mi vida contigo es arte',
+      'Tu voz me calma',
+      'Eres luz',
+      'Gracias por ser tú',
+      'Tu mano y la mía',
+      'Siempre será contigo',
+      'Todo es mejor desde que llegaste',
+      'Si me pierdo, que sea en ti',
+      'Mi corazón sonríe contigo',
+      'Nosotros, y nada más',
+      'Te amaré en todos los tiempos',
+      'Eres mi destino favorito',
+      'Qué bonito es quererte',
+      'Donde tú, ahí yo',
+      'Me gustas infinito',
+      'Eres mi café de cada mañana',
+      'Tus ojos, mi refugio',
+      'Prometo cuidarte',
+      'Mi amor se escribe con tu nombre',
+      'Amarte es mi suerte',
+      'Gracias por elegirme',
+      'Contigo, siempre',
+      'Te vuelves poesía en mí'
+    ];
+    // ===== FIN PERSONALIZA =====
+
+    // Botón: ocultar HUD
+    document.getElementById('btnStart').addEventListener('click',()=>{
+      document.getElementById('hud').classList.add('hide');
+    });
+
+    // Corazones flotando
+    const heartC = document.getElementById('hearts');
+    function spawnHeart(){
+      const h = document.createElement('div');
+      h.className='heart'; h.textContent='❤';
+      h.style.left = Math.random()*100+'vw';
+      h.style.animationDuration = (8+Math.random()*10)+'s';
+      heartC.appendChild(h);
+      setTimeout(()=>h.remove(), 20000);
+    }
+    for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
+    setInterval(spawnHeart, 600);
+
+    // Frases distribuidas en 3D (múltiples alturas para que no se encimen)
+    const cloud = document.getElementById('cloud');
+    FRASES.forEach((t,i)=>{
+      const el = document.createElement('div');
+      el.className='phrase'; el.textContent = t;
+      const R = 340; // radio un poco mayor para más frases
+      const ang = (i/FRASES.length)*Math.PI*2;
+      const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
+      const levels = [-140,-70,0,70,140]; // más niveles verticales
+      el.style.transform = `translate3d(${x}px, ${levels[i % levels.length]}px, ${z}px)`;
+      cloud.appendChild(el);
+    });
+
+    // Ring de fotos
+    const ring = document.getElementById('ring');
+    FOTOS.forEach((src,i)=>{
+      const img = new Image();
+      img.src = src; img.alt = 'foto';
+      const N = FOTOS.length, ang = (i/N)*Math.PI*2;
+      const R = 240, x = Math.cos(ang)*R, z = Math.sin(ang)*R;
+      img.style.transform = `translate3d(${x}px,0,${z}px) rotateY(${ang}rad)`;
+      ring.appendChild(img);
+    });
+
+    // Giro suave adicional (mejora en iOS)
+    let ry=0; setInterval(()=>{ ry+=.03;
+      cloud.style.transform=`rotateX(10deg) rotateY(${ry}rad)`; }, 50);
+  </script>
+</body>
+</html>
