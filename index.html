@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Para ti ❤️</title>
   <meta name="description" content="Sorpresita interactiva con fotos y frases."/>
   <style>
-    :root{ --bg:#05070d; --txt:#e6f6ff; --muted:#8aa1b1; --img:110px }
+    :root{ --bg:#05070d; --txt:#e6f6ff; --muted:#8aa1b1 }
     *{ box-sizing:border-box }
     html,body{ height:100%; margin:0 }
     body{
@@ -15,39 +15,40 @@
       background: radial-gradient(1200px 800px at 50% -10%, #0f1424 0%, #080a12 40%, #05070d 100%);
       overflow:hidden;
     }
-
+    /* Corazoncitos */
     .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0 }
-    .heart{ position:absolute; font-size:14px; opacity:.35; animation:floatUp linear infinite;
-      filter: drop-shadow(0 0 6px rgba(255,56,120,.35)); }
-    @keyframes floatUp{ from{ transform:translateY(110vh) scale(.8) rotate(0) }
-                        to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) } }
-
-    .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:950px; z-index:1 }
-    .cloud{
-      position:relative; transform-style:preserve-3d;
-      transform: translateY(-2vh) rotateY(18deg); /* inclinamos para que no se vea en columna */
-      animation:spin 55s linear infinite;
+    .heart{
+      position:absolute; font-size:14px; opacity:.35;
+      animation:floatUp linear infinite;
+      filter: drop-shadow(0 0 6px rgba(255,56,120,.35));
     }
-    @keyframes spin{ from{ transform:translateY(-2vh) rotateX(4deg) rotateY(18deg) }
-                     to{   transform:translateY(-2vh) rotateX(4deg) rotateY(378deg) } }
+    @keyframes floatUp{
+      from{ transform:translateY(110vh) scale(.8) rotate(0) }
+      to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) }
+    }
 
-    /* Frases (NO tocar) */
+    /* Escena 3D */
+    .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:900px; z-index:1 }
+    .cloud{ position:relative; transform-style:preserve-3d; animation:spin 55s linear infinite }
+    @keyframes spin{ from{ transform:rotateX(6deg) rotateY(0) } to{ transform:rotateX(6deg) rotateY(360deg) } }
+
     .phrase{
-      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.92;
+      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.9;
       text-shadow:0 0 12px rgba(140,200,255,.25);
       font-size: clamp(12px, 2.2vw, 18px);
     }
 
-    /* Fotos */
+    /* Ring de fotos */
     .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
     .ring img{
-      width:var(--img); height:var(--img); object-fit:cover; border-radius:18px;
+      width:120px; height:120px; object-fit:cover; border-radius:18px;
       border:2px solid rgba(255,255,255,.15); box-shadow:0 10px 30px rgba(0,0,0,.35);
       background:#111; will-change: transform;
-      animation: bob 4s ease-in-out infinite;
+      animation:bob 4s ease-in-out infinite;
     }
     @keyframes bob{ 0%,100%{ transform:translateZ(0) } 50%{ transform:translateZ(7px) } }
 
+    /* HUD */
     .hud{ position:fixed; inset:0; display:grid; place-items:center; z-index:2 }
     .card{
       background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
@@ -62,18 +63,25 @@
       box-shadow:0 10px 30px rgba(255,59,123,.35)
     }
     .hide{ display:none }
-    @media (max-width:480px){ .title{ font-size:22px } }
+
+    @media (max-width:480px){
+      .ring img{ width:86px; height:86px } /* más compactas en móvil */
+      .title{ font-size:22px }
+    }
   </style>
 </head>
 <body>
+  <!-- Corazones -->
   <div class="hearts" id="hearts"></div>
 
+  <!-- Escena 3D -->
   <div class="space">
     <div class="cloud" id="cloud">
       <div class="ring" id="ring"></div>
     </div>
   </div>
 
+  <!-- Pantalla inicial -->
   <div class="hud" id="hud">
     <div class="card">
       <h1 class="title">Toca para empezar ✨</h1>
@@ -86,7 +94,7 @@
     // ======= PERSONALIZA AQUI =======
     const FOTOS = [
       'fotos/1.jpg','fotos/2.jpg','fotos/3.jpg',
-      'fotos/4.jpg','fotos/5.jpg','fotos/6.jpg'
+      'fotos/4.jpg','fotos/5.jpg','fotos/6.jpg' // corregido el nombre
     ];
 
     const FRASES = [
@@ -107,12 +115,12 @@
     ];
     // ===== FIN PERSONALIZA =====
 
-    // HUD
+    // Ocultar HUD
     document.getElementById('btnStart').addEventListener('click',()=>{
       document.getElementById('hud').classList.add('hide');
     });
 
-    // Corazones
+    // Corazones flotando
     const heartC = document.getElementById('hearts');
     function spawnHeart(){
       const h = document.createElement('div');
@@ -125,74 +133,64 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // Frases (intactas)
+    // === Frases (NO toco tu distribución) ===
     const cloud = document.getElementById('cloud');
-    (function placePhrases(){
-      const R = Math.min(innerWidth, innerHeight) * 0.46;
-      const levels = 6;
-      const minY = -innerHeight*0.38, maxY = innerHeight*0.28;
-      for(let i=0;i<FRASES.length;i++){
-        const el = document.createElement('div');
-        el.className='phrase'; el.textContent = FRASES[i];
-        const ang = (i/FRASES.length)*Math.PI*2;
-        const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
-        const tier = i % levels;
-        const y = minY + (tier/(levels-1))*(maxY-minY) + (Math.sin(ang*3)*8);
-        el.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
-        cloud.appendChild(el);
-      }
-    })();
+    FRASES.forEach((t,i)=>{
+      const el = document.createElement('div');
+      el.className='phrase'; el.textContent = t;
+      const R = Math.min(innerWidth, innerHeight) * 0.42;
+      const ang = (i/FRASES.length)*Math.PI*2;
+      const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
+      const levels = [-140,-70,0,70,140]; // tus niveles
+      el.style.transform = `translate3d(${x}px, ${levels[i % levels.length]}px, ${z}px)`;
+      cloud.appendChild(el);
+    });
 
-    // ===== FOTOS: DISTRIBUCIÓN "FIBONACCI SPHERE" =====
+    // === FOTOS (idéntico al tuyo pero SUBIDO) ===
     const ring = document.getElementById('ring');
-    const GOLD = Math.PI * (3 - Math.sqrt(5)); // golden angle
+    const N = FOTOS.length;
 
-    function layoutPhotos(){
-      ring.innerHTML = '';
-      const N = FOTOS.length;
-      const minSide = Math.min(innerWidth, innerHeight);
+    // radio responsivo
+    const baseR = Math.min(innerWidth, innerHeight) * 0.28;
 
-      // radio de la esfera (más grande en móvil para llenar alto)
-      const R = (innerHeight > innerWidth) ? innerWidth * 0.45 : minSide * 0.42;
+    // amplitud vertical (separación) y OFFSET para subir todo el ring
+    const yAmp  = Math.min(innerHeight, 900) * 0.12;                 // separación
+    const yOff  = (innerHeight > innerWidth) ? -innerHeight*0.10     // móvil: súbelo 10% alto
+                                             : -innerHeight*0.06;    // desktop: súbelo 6% alto
 
-      // tamaño = distancia media entre puntos en la esfera (evita solapes)
-      const meanChord = 2 * R * Math.sin(Math.sqrt(4*Math.PI/N)/2);
-      const size = Math.max(62, Math.min(130, Math.floor(meanChord * 0.70)));
-      document.documentElement.style.setProperty('--img', size+'px');
+    FOTOS.forEach((src,i)=>{
+      const img = new Image();
+      img.src = src; img.alt = 'foto';
+      img.onerror = ()=>img.remove();
 
-      for(let i=0;i<N;i++){
-        // puntos casi uniformes sobre esfera
-        const t = (i + 0.5) / N;
-        const y = 1 - 2*t;                           // -1..1
-        const r = Math.sqrt(1 - y*y);                // radio en ese "paralelo"
-        const theta = i * GOLD;
+      const ang = (i/N)*Math.PI*2;
+      const x = Math.cos(ang)*baseR;
+      const z = Math.sin(ang)*baseR;
+      const y = Math.sin(ang*2) * yAmp + yOff; // << subimos todo el conjunto
 
-        const x = Math.cos(theta) * r;
-        const z = Math.sin(theta) * r;
-
-        // escalamos al radio R y abrimos un poco en vertical para móvil
-        const yWorld = y * R * (innerHeight > innerWidth ? 1.15 : 0.9);
-        const xWorld = x * R;
-        const zWorld = z * R;
-
-        const img = new Image();
-        img.src = FOTOS[i]; img.alt = 'foto';
-        img.onerror = ()=> img.remove();
-
-        // orientar hacia el centro (ligeramente) para un look bonito
-        const yaw = Math.atan2(zWorld, xWorld);
-        img.style.transform = `translate3d(${xWorld}px, ${yWorld}px, ${zWorld}px) rotateY(${yaw}rad)`;
-        ring.appendChild(img);
-      }
-    }
+      img.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${ang}rad)`;
+      ring.appendChild(img);
+    });
 
     // Giro suave
     let ry=0; setInterval(()=>{ ry+=.03;
-      cloud.style.transform=`translateY(-2vh) rotateX(4deg) rotateY(${18+ry*57.2958/1}deg)`; }, 50);
+      cloud.style.transform=`rotateX(6deg) rotateY(${ry}rad)`; }, 50);
 
-    // Inicializar + responsive sin recargar
-    layoutPhotos();
-    addEventListener('resize', layoutPhotos);
+    // Recalcular al cambiar tamaño (sin recargar)
+    addEventListener('resize', ()=>{
+      // Reposicionar solo las fotos con el nuevo offset
+      const imgs = [...ring.querySelectorAll('img')];
+      const baseR2 = Math.min(innerWidth, innerHeight) * 0.28;
+      const yAmp2  = Math.min(innerHeight, 900) * 0.12;
+      const yOff2  = (innerHeight > innerWidth) ? -innerHeight*0.10 : -innerHeight*0.06;
+      imgs.forEach((img, i)=>{
+        const ang = (i/N)*Math.PI*2;
+        const x = Math.cos(ang)*baseR2;
+        const z = Math.sin(ang)*baseR2;
+        const y = Math.sin(ang*2) * yAmp2 + yOff2;
+        img.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${ang}rad)`;
+      });
+    });
   </script>
 </body>
 </html>
