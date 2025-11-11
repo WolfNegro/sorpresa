@@ -15,7 +15,8 @@
       background: radial-gradient(1200px 800px at 50% -10%, #0f1424 0%, #080a12 40%, #05070d 100%);
       overflow:hidden;
     }
-    /* Corazoncitos */
+
+    /* Corazones */
     .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0 }
     .heart{
       position:absolute; font-size:14px; opacity:.35;
@@ -29,23 +30,29 @@
 
     /* Escena 3D */
     .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:900px; z-index:1 }
-    .cloud{ position:relative; transform-style:preserve-3d; animation:spin 55s linear infinite }
-    @keyframes spin{ from{ transform:rotateX(6deg) rotateY(0) } to{ transform:rotateX(6deg) rotateY(360deg) } } /* < menos inclinación */
+    .cloud{
+      position:relative; transform-style:preserve-3d;
+      /* ligero empuje hacia arriba para evitar “techo” vacío */
+      transform: translateY(-3vh);
+      animation:spin 55s linear infinite;
+    }
+    @keyframes spin{ from{ transform:translateY(-3vh) rotateX(4deg) rotateY(0) } to{ transform:translateY(-3vh) rotateX(4deg) rotateY(360deg) } }
 
     .phrase{
-      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.9;
+      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.92;
       text-shadow:0 0 12px rgba(140,200,255,.25);
       font-size: clamp(12px, 2.2vw, 18px);
     }
 
-    /* Ring de fotos (siempre dentro del viewport) */
+    /* Anillos de fotos */
     .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
     .ring img{
       width:120px; height:120px; object-fit:cover; border-radius:18px;
       border:2px solid rgba(255,255,255,.15); box-shadow:0 10px 30px rgba(0,0,0,.35);
-      background:#111;
-      will-change: transform;
+      background:#111; will-change: transform;
+      animation: bob 4s ease-in-out infinite;
     }
+    @keyframes bob{ 0%,100%{ transform:translateZ(0) } 50%{ transform:translateZ(6px) } }
 
     /* HUD */
     .hud{ position:fixed; inset:0; display:grid; place-items:center; z-index:2 }
@@ -64,7 +71,7 @@
     .hide{ display:none }
 
     @media (max-width:480px){
-      .ring img{ width:86px; height:86px } /* < más compactas en móvil */
+      .ring img{ width:88px; height:88px } /* más compactas en móvil */
       .title{ font-size:22px }
     }
   </style>
@@ -76,7 +83,8 @@
   <!-- Escena 3D -->
   <div class="space">
     <div class="cloud" id="cloud">
-      <div class="ring" id="ring"></div>
+      <div class="ring" id="ringTop"></div>
+      <div class="ring" id="ringBottom"></div>
     </div>
   </div>
 
@@ -132,45 +140,52 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // Frases distribuidas
+    // === Distribución homogénea de FRASES (6 niveles de altura) ===
     const cloud = document.getElementById('cloud');
-    FRASES.forEach((t,i)=>{
-      const el = document.createElement('div');
-      el.className='phrase'; el.textContent = t;
-      const R = Math.min(innerWidth, innerHeight) * 0.42;    // radio de frases
-      const ang = (i/FRASES.length)*Math.PI*2;
-      const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
-      const levels = [-140,-70,0,70,140];
-      el.style.transform = `translate3d(${x}px, ${levels[i % levels.length]}px, ${z}px)`;
-      cloud.appendChild(el);
-    });
+    (function placePhrases(){
+      const R = Math.min(innerWidth, innerHeight) * 0.46; // radio de frases
+      const levels = 6;
+      // altura uniforme desde -38% a +28% de la pantalla
+      const minY = -innerHeight*0.38, maxY = innerHeight*0.28;
+      for(let i=0;i<FRASES.length;i++){
+        const el = document.createElement('div');
+        el.className='phrase'; el.textContent = FRASES[i];
+        const ang = (i/FRASES.length)*Math.PI*2;
+        const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
+        const tier = i % levels;
+        const y = minY + (tier/(levels-1))*(maxY-minY) + (Math.sin(ang*3)*8); // jitter suave
+        el.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+        cloud.appendChild(el);
+      }
+    })();
 
-    // Ring de fotos SIEMPRE dentro de pantalla
-    const ring = document.getElementById('ring');
+    // === Dos anillos de FOTOS (arriba/abajo) bien dentro del viewport ===
+    const topRing = document.getElementById('ringTop');
+    const bottomRing = document.getElementById('ringBottom');
     const N = FOTOS.length;
-    const baseR = Math.min(innerWidth, innerHeight) * 0.28;  // radio responsivo (28% del menor lado)
-    const yAmp  = Math.min(innerHeight, 900) * 0.12;         // amplitud vertical máx ±12% pantalla
+    const baseR = Math.min(innerWidth, innerHeight) * 0.30;   // radio responsivo
+    const yOffset = Math.min(innerHeight, 900) * 0.12;        // separación vertical (±12% pantalla)
 
     FOTOS.forEach((src,i)=>{
-      const img = new Image();
-      img.src = src; img.alt = 'foto';
-
       const ang = (i/N)*Math.PI*2;
-      const x = Math.cos(ang)*baseR;
-      const z = Math.sin(ang)*baseR;
-
-      // Offset vertical suave para separarlas pero manteniéndolas dentro del viewport
-      const y = Math.sin(ang*2) * yAmp;
-
-      img.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${ang}rad)`;
-      ring.appendChild(img);
+      const x = Math.cos(ang)*baseR, z = Math.sin(ang)*baseR;
+      // anillo superior
+      const img1 = new Image(); img1.src = src; img1.alt='foto';
+      img1.style.transform = `translate3d(${x}px, ${-yOffset + Math.sin(ang*2)*10}px, ${z}px) rotateY(${ang}rad)`;
+      topRing.appendChild(img1);
+      // anillo inferior (desfasado)
+      const img2 = new Image(); img2.src = src; img2.alt='foto';
+      const ang2 = ang + Math.PI/N;
+      const x2 = Math.cos(ang2)*baseR, z2 = Math.sin(ang2)*baseR;
+      img2.style.transform = `translate3d(${x2}px, ${yOffset + Math.cos(ang2*2)*10}px, ${z2}px) rotateY(${ang2}rad)`;
+      bottomRing.appendChild(img2);
     });
 
     // Giro suave
     let ry=0; setInterval(()=>{ ry+=.03;
-      cloud.style.transform=`rotateX(6deg) rotateY(${ry}rad)`; }, 50);
+      cloud.style.transform=`translateY(-3vh) rotateX(4deg) rotateY(${ry}rad)`; }, 50);
 
-    // Recalcular al rotar/ cambiar tamaño
+    // Recalcular al cambiar tamaño
     addEventListener('resize', ()=>location.reload());
   </script>
 </body>
