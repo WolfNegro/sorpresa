@@ -92,7 +92,7 @@
       <!-- Grupo común centrado -->
       <div class="origin" id="origin">
         <div class="ring" id="ring"></div>
-        <!-- aquí van también las frases -->
+        <!-- Aquí se insertan las frases -->
       </div>
     </div>
   </div>
@@ -152,72 +152,72 @@
     // Grupo común
     const origin = document.getElementById('origin');
 
-    // ===== FRASES (guardamos posiciones base para hacer billboard) =====
+    // ===== FRASES (guardamos posiciones y hacemos billboard) =====
     const phraseNodes = [];
     (function placePhrases(){
-      const Rmin = Math.min(innerWidth, innerHeight);
-      const R1 = Rmin * 0.40;
-      const R2 = Rmin * 0.48;
-      const levels = [-180,-120,-60,0,60,120,180];
-      const phi = Math.PI * (3 - Math.sqrt(5));
+      const Rmin  = Math.min(innerWidth, innerHeight);
+      const R1    = Rmin * 0.45;    // radio interno mayor para separar más
+      const R2    = Rmin * 0.55;    // radio externo
+      const levels = [-210,-140,-70,0,70,140,210]; // alturas ampliadas para menos solapes
+      const phi   = Math.PI * (3 - Math.sqrt(5)); // ángulo áureo
 
       for(let i=0;i<FRASES.length;i++){
         const el = document.createElement('div');
-        el.className='phrase';
+        el.className = 'phrase';
         el.textContent = FRASES[i];
 
+        // alternamos radios para romper patrones
         const useR = (i % 2 === 0) ? R1 : R2;
         const ang  = i * phi;
-        const x = Math.cos(ang) * useR;
-        const z = Math.sin(ang) * useR;
-        const y = levels[i % levels.length] + Math.sin(ang*2) * Math.min(14, Rmin*0.015);
+        const x    = Math.cos(ang) * useR;
+        const z    = Math.sin(ang) * useR;
+        const y    = levels[i % levels.length] + Math.sin(ang*2) * Math.min(18, Rmin*0.02);
 
-        // guardamos su posición base
-        phraseNodes.push({el,x,y,z});
+        // guardamos posición base
+        phraseNodes.push({el, x, y, z});
         origin.appendChild(el);
       }
     })();
 
-    // ===== FOTOS (anillo correcto, mismo pivote) =====
+    // ===== FOTOS (anillo a 240 px, levantado 12 % de la altura) =====
     (function placePhotos(){
       const ring = document.getElementById('ring');
-      const N = FOTOS.length;
-      const R = 240;
+      const N    = FOTOS.length;
+      const R    = 240; // radio fijo
+      const yOff = -innerHeight * 0.12; // subir 12% la altura del anillo
       for(let i=0;i<N;i++){
         const img = new Image();
-        img.src = FOTOS[i]; img.alt = 'foto';
-        const ang = (i/N)*Math.PI*2;
-        const x = Math.cos(ang)*R;
-        const z = Math.sin(ang)*R;
-        img.style.transform = `translate3d(${x}px,0,${z}px) rotateY(${ang}rad)`;
+        img.src = FOTOS[i];
+        img.alt = 'foto';
+        const ang = (i / N) * Math.PI * 2;
+        const x   = Math.cos(ang) * R;
+        const z   = Math.sin(ang) * R;
+        img.style.transform = `translate3d(${x}px,${yOff}px,${z}px) rotateY(${ang}rad)`;
         ring.appendChild(img);
       }
     })();
 
     // ===== Animación =====
-    let ry = 0;                 // ángulo actual
-    const tilt = 6 * Math.PI/180; // 6 grados en radianes
-    const SPEED = 0.008;        // más lento
+    let ry = 0;
+    const tilt  = 6 * Math.PI / 180; // 6 grados
+    const SPEED = 0.003; // aún más lento
 
     function tick(){
       ry += SPEED;
-
       // rotamos el grupo común
       origin.style.transform =
         `translate(-50%,-50%) rotateX(${tilt}rad) rotateY(${ry}rad)`;
 
-      // BILLBOARD: cada frase se contrarota para mirar a cámara
-      const inv = -ry; // inverso del giro en Y
+      // billboard: cada frase se contrarota para mirar a la cámara
+      const inv = -ry;
       for(const p of phraseNodes){
         p.el.style.transform =
-          `translate3d(${p.x}px, ${p.y}px, ${p.z}px) rotateY(${inv}rad)`;
+          `translate3d(${p.x}px,${p.y}px,${p.z}px) rotateY(${inv}rad)`;
       }
 
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
-
-    // (opcional) si cambias tamaño, podríamos recalcular; lo omitimos para no tocar tu layout
   </script>
 </body>
 </html>
