@@ -1,201 +1,296 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Para ti ❤️</title>
-  <meta name="description" content="Sorpresita interactiva con fotos y frases."/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Escena 3D - Frases y Fotos</title>
+  <!-- Three.js (con renderer CSS3D) -->
+  <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.147.0/examples/js/renderers/CSS3DRenderer.js"></script>
   <style>
-    :root{ --bg:#05070d; --txt:#e6f6ff; --muted:#8aa1b1 }
-    *{ box-sizing:border-box }
-    html,body{ height:100%; margin:0 }
-    body{
-      font-family:Poppins,Segoe UI,Arial,sans-serif;
-      color:var(--txt);
-      background: radial-gradient(1200px 800px at 50% -10%, #0f1424 0%, #080a12 40%, #05070d 100%);
-      overflow:hidden;
+    /* Estilos básicos */
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;               /* Sin scroll, ocupamos pantalla completa */
+      background: #ffffff;            /* Fondo blanco (se puede cambiar si se desea) */
+      touch-action: none;             /* Deshabilita gestos de scroll en móviles */
+      user-select: none;             /* Evita seleccionar texto accidentalmente */
     }
-
-    /* Corazoncitos */
-    .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0 }
-    .heart{
-      position:absolute; font-size:14px; opacity:.35;
-      animation:floatUp linear infinite;
-      filter: drop-shadow(0 0 6px rgba(255,56,120,.35));
+    #scene3d {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      /* No background-color here so it’s transparent over the hearts background */
     }
-    @keyframes floatUp{
-      from{ transform:translateY(110vh) scale(.8) rotate(0) }
-      to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) }
+    /* HUD de inicio – pantalla completa semitransparente */
+    #start-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);   /* fondo negro semi-transparente */
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-size: 1.5em;
+      z-index: 1000;                /* encima de todo */
     }
-
-    /* Escena 3D */
-    .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:900px; z-index:1 }
-    .cloud{ position:relative; transform-style:preserve-3d; animation:spin 55s linear infinite }
-    @keyframes spin{ from{ transform:rotateX(6deg) rotateY(0) } to{ transform:rotateX(6deg) rotateY(360deg) } }
-
-    /* Frases (se quedan igual) */
-    .phrase{
-      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.9;
-      text-shadow:0 0 12px rgba(140,200,255,.25);
-      font-size: clamp(12px, 2.2vw, 18px);
+    #start-screen span {
+      padding: 20px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
     }
-
-    /* Fotos */
-    .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
-    .ring img{
-      width:120px; height:120px; object-fit:cover; border-radius:18px;
-      border:2px solid rgba(255,255,255,.15); box-shadow:0 10px 30px rgba(0,0,0,.35);
-      background:#111; will-change: transform; animation:bob 4s ease-in-out infinite;
+    /* Fondo de corazones flotando */
+    #bg-hearts {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      pointer-events: none;         /* Los corazones no interfieren con toques/clicks */
+      z-index: 0;
     }
-    @keyframes bob{ 0%,100%{ transform:translateZ(0) } 50%{ transform:translateZ(7px) } }
-
-    /* HUD */
-    .hud{ position:fixed; inset:0; display:grid; place-items:center; z-index:2 }
-    .card{
-      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
-      backdrop-filter:blur(10px); border-radius:22px; padding:22px 20px;
-      box-shadow:0 20px 60px rgba(0,0,0,.4); text-align:center; max-width:440px
+    .heart {
+      position: absolute;
+      bottom: 0;
+      /* Tamaño base del corazón (ajustable) */
+      width: 50px;
+      height: 45px;
+      /* Dibujar la forma de corazón utilizando pseudo-elementos */
     }
-    .title{ font-size:26px; margin:0 0 6px }
-    .subtitle{ margin:0 0 14px; color:var(--muted) }
-    .btn{
-      cursor:pointer; border:0; border-radius:14px; padding:12px 18px; font-weight:700;
-      background:linear-gradient(135deg,#ff8fb3,#ff3b7b); color:#fff;
-      box-shadow:0 10px 30px rgba(255,59,123,.35)
+    .heart::before, .heart::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 26px;
+      height: 40px;
+      background: red;
+      border-radius: 50px 50px 0 0;
     }
-    .hide{ display:none }
-
-    @media (max-width:480px){
-      .ring img{ width:86px; height:86px } /* más compactas en móvil */
-      .title{ font-size:22px }
+    .heart::before {
+      left: 25px;
+      transform: rotate(-45deg);
+      transform-origin: 0 100%;
+    }
+    .heart::after {
+      left: 0;
+      transform: rotate(45deg);
+      transform-origin: 100% 100%;
+    }
+    /* Clases para diferentes tamaños/opacidades de corazones (anillos de diferentes escalas) */
+    .x1 { 
+      transform: scale(0.9); 
+      opacity: 0.6;
+      left: 5%;
+      animation: floating-heart 10s infinite cubic-bezier(0.5,0.5,0.5,0.5);
+    }
+    .x2 { 
+      transform: scale(0.6); 
+      opacity: 0.9;
+      left: 25%;
+      animation: floating-heart 12s infinite cubic-bezier(0.5,0.5,0.5,0.5);
+    }
+    .x3 { 
+      transform: scale(0.8); 
+      opacity: 0.8;
+      left: 55%;
+      animation: floating-heart 8s infinite cubic-bezier(0.5,0.5,0.5,0.5);
+    }
+    .x4 { 
+      transform: scale(0.75);
+      opacity: 0.9;
+      left: 72%;
+      animation: floating-heart 15s infinite cubic-bezier(0.5,0.5,0.5,0.5);
+    }
+    .x5 { 
+      transform: scale(0.8); 
+      opacity: 0.3;
+      left: 88%;
+      animation: floating-heart 9s infinite cubic-bezier(0.5,0.5,0.5,0.5);
+    }
+    .x6 { 
+      /* escala default 1 */
+      opacity: 1;
+      left: 33%;
+      animation: floating-heart 11s infinite cubic-bezier(0.5,0.5,0.5,0.5);
+    }
+    /* Animación de corazones flotantes (movimiento vertical y oscilación horizontal) */
+    @keyframes floating-heart {
+      0%   { opacity: 0; bottom: 0%;   left: 0%; }
+      10%  { opacity: 1; bottom: 20%;  left: 70%; }
+      20%  {           bottom: 40%;  left: 10%; }
+      30%  {           bottom: 60%;  left: 50%; }
+      40%  { opacity: 1; bottom: 80%;  left: 5%;  }
+      48%  { opacity: 0; bottom: 100%; left: 60%; }
+      100% { opacity: 0; bottom: 100%; left: 90%; }
+    }
+    /* Retraso escalonado para que los corazones suban uno tras otro */
+    #bg-hearts .heart:nth-child(1) { animation-delay: 0s; }
+    #bg-hearts .heart:nth-child(2) { animation-delay: 2s; }
+    #bg-hearts .heart:nth-child(3) { animation-delay: 4s; }
+    #bg-hearts .heart:nth-child(4) { animation-delay: 6s; }
+    #bg-hearts .heart:nth-child(5) { animation-delay: 8s; }
+    #bg-hearts .heart:nth-child(6) { animation-delay: 10s; }
+    /* Estilos de los elementos de texto (frases) en la escena 3D */
+    .phrase {
+      font-family: "Arial", sans-serif;
+      font-size: 1.2em;
+      color: #000000;
+      /* Se podría ajustar color/tamaño o añadir sombras según preferencia */
+    }
+    /* Asegurar que imágenes y frases en la escena no interfieran con puntero */
+    .photo, .phrase {
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
-  <!-- Corazones -->
-  <div class="hearts" id="hearts"></div>
 
-  <!-- Escena 3D -->
-  <div class="space">
-    <div class="cloud" id="cloud">
-      <div class="ring" id="ring"></div>
-    </div>
+  <!-- Contenedor de la escena 3D -->
+  <div id="scene3d"></div>
+
+  <!-- HUD de inicio -->
+  <div id="start-screen"><span>Toca para iniciar</span></div>
+
+  <!-- Fondo de corazones flotando (6 corazones con clases x1..x6) -->
+  <div id="bg-hearts">
+    <div class="heart x1"></div>
+    <div class="heart x2"></div>
+    <div class="heart x3"></div>
+    <div class="heart x4"></div>
+    <div class="heart x5"></div>
+    <div class="heart x6"></div>
   </div>
 
-  <!-- Pantalla inicial -->
-  <div class="hud" id="hud">
-    <div class="card">
-      <h1 class="title">Toca para empezar ✨</h1>
-      <p class="subtitle">He preparado algo para ti 💖</p>
-      <button class="btn" id="btnStart">Empezar</button>
-    </div>
-  </div>
-
+  <!-- Script de la escena 3D -->
   <script>
-    // ======= PERSONALIZA AQUI =======
-    const FOTOS = [
-      'fotos/1.jpg','fotos/2.jpg','fotos/3.jpg',
-      'fotos/4.jpg','fotos/5.jpg','fotos/6.jpg' // nombre corregido
+    // Variables globales de Three.js
+    let camera, scene, renderer;
+    let group;  // grupo que contendrá todas las frases y fotos
+
+    // Posiciones predefinidas de las frases (ejemplo; usar las reales si se proveen)
+    const frases = [
+      "Te amo",
+      "Eres mi vida",
+      "Mi sol",
+      "Siempre juntos",
+      "Amor eterno",
+      "Mi luz"
+    ];
+    // Coordenadas ejemplo para las frases (debe reemplazarse con las reales si se tienen)
+    const frasePositions = [
+      { x: -20, y:  40, z: -10 },
+      { x:  30, y:  30, z:  20 },
+      { x: -35, y: -10, z:  15 },
+      { x:  10, y: -30, z: -25 },
+      { x:   0, y:  10, z: -30 },
+      { x: -25, y:   0, z: -30 }
     ];
 
-    const FRASES = [
-      'Eres lo más bonito de mi vida','Te elijo hoy, mañana y siempre','Gracias por quedarte',
-      'Cada latido dice tu nombre','Mi lugar favorito es a tu lado','Contigo todo tiene sentido',
-      'Tu sonrisa es mi suerte','Me enamoro de ti todos los días','Eres mi hogar','Somos equipo',
-      'Tu abrazo es mi paz','Eres mi sueño despierto','A tu lado soy mejor','Quédate cerca',
-      'Eres mi presente y mi futuro','Me haces feliz','Siempre tú','Qué lindo coincidir contigo',
-      'Mi plan favorito: nosotros','Eres mi milagro','Te pienso, te extraño, te amo','Me das alas',
-      'Eres mi mejor casualidad','Más que amor: tú','Tú y yo contra el mundo','Te escojo mil veces',
-      'Eres mi personita','Mi vida contigo es arte','Tu voz me calma','Eres luz','Gracias por ser tú',
-      'Tu mano y la mía','Siempre será contigo','Todo es mejor desde que llegaste',
-      'Si me pierdo, que sea en ti','Mi corazón sonríe contigo','Nosotros, y nada más',
-      'Te amaré en todos los tiempos','Eres mi destino favorito','Qué bonito es quererte',
-      'Donde tú, ahí yo','Me gustas infinito','Eres mi café de cada mañana','Tus ojos, mi refugio',
-      'Prometo cuidarte','Mi amor se escribe con tu nombre','Amarte es mi suerte',
-      'Gracias por elegirme','Contigo, siempre','Te vuelves poesía en mí'
+    // Datos de las fotos: definimos posiciones usando 3 anillos de distintos radios y alturas
+    const fotos = [
+      { url: "fotos/1.jpg", angle:  0,   radius: 250, y: 100 },
+      { url: "fotos/2.jpg", angle:  60,  radius: 250, y:  60 },
+      { url: "fotos/3.jpg", angle: 140, radius: 300, y:  20 },
+      { url: "fotos/4.jpg", angle: 220, radius: 300, y: -20 },
+      { url: "fotos/5.jpg", angle: 280, radius: 200, y: -60 },
+      { url: "fotos/6.jpg", angle: 330, radius: 200, y: -100 }
     ];
-    // ===== FIN PERSONALIZA =====
+    // Convertir angulo en radianes por conveniencia
+    fotos.forEach(f => f.angleRad = f.angle * Math.PI/180);
 
-    // Ocultar HUD
-    document.getElementById('btnStart').addEventListener('click',()=>{
-      document.getElementById('hud').classList.add('hide');
-    });
+    init();
+    animate();
 
-    // Corazones flotando
-    const heartC = document.getElementById('hearts');
-    function spawnHeart(){
-      const h = document.createElement('div');
-      h.className='heart'; h.textContent='❤';
-      h.style.left = Math.random()*100+'vw';
-      h.style.animationDuration = (8+Math.random()*10)+'s';
-      heartC.appendChild(h);
-      setTimeout(()=>h.remove(), 20000);
-    }
-    for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
-    setInterval(spawnHeart, 600);
+    function init() {
+      // Crear escena
+      scene = new THREE.Scene();
 
-    // === Frases (no se tocan) ===
-    const cloud = document.getElementById('cloud');
-    FRASES.forEach((t,i)=>{
-      const el = document.createElement('div');
-      el.className='phrase'; el.textContent = t;
-      const R = Math.min(innerWidth, innerHeight) * 0.42;
-      const ang = (i/FRASES.length)*Math.PI*2;
-      const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
-      const levels = [-140,-70,0,70,140];
-      el.style.transform = `translate3d(${x}px, ${levels[i % levels.length]}px, ${z}px)`;
-      cloud.appendChild(el);
-    });
+      // Crear cámara perspectiva (fov 60, aspecto segun pantalla, cerca=1, lejos=2000)
+      const aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.PerspectiveCamera(60, aspect, 1, 2000);
+      // Ubicar cámara mirando hacia el origen
+      camera.position.set(0, 0, 800);
+      camera.lookAt(0, 0, 0);
 
-    // === FOTOS: 3 ANILLOS ESCALONADOS (repartidas: izq/der/altos) ===
-    const ring = document.getElementById('ring');
+      // Inicializar renderer CSS3D
+      renderer = new THREE.CSS3DRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      // Añadir el renderer al contenedor #scene3d
+      const sceneContainer = document.getElementById("scene3d");
+      sceneContainer.appendChild(renderer.domElement);
 
-    function layoutFotos(){
-      ring.innerHTML = '';
+      // Crear grupo para la nube de frases y fotos
+      group = new THREE.Group();
+      scene.add(group);
 
-      const N = FOTOS.length;
-      const minSide = Math.min(innerWidth, innerHeight);
-
-      // radio base (más abierto en móvil) y subida del conjunto
-      const R_BASE = minSide * (innerHeight > innerWidth ? 0.38 : 0.32);
-      const Y_OFFSET = (innerHeight > innerWidth ? -innerHeight*0.08 : -innerHeight*0.05);
-
-      // tres anillos con distintas fases y alturas -> NO se alinean
-      const rings = [
-        { r: R_BASE*0.95, y: Y_OFFSET - innerHeight*0.14, phase: 0.00 },          // arriba
-        { r: R_BASE*1.15, y: Y_OFFSET + 0,                 phase: Math.PI/3 },     // medio
-        { r: R_BASE*0.95, y: Y_OFFSET + innerHeight*0.14,  phase: Math.PI*2/3 }    // abajo
-      ];
-
-      for (let i = 0; i < N; i++) {
-        const a = i % rings.length;                            // qué anillo toca
-        const k = Math.floor(i / rings.length);                // posición dentro del anillo
-        const items = Math.ceil((N - a + rings.length - 1) / rings.length);
-
-        const { r, y, phase } = rings[a];
-        const ang = (k/items)*Math.PI*2 + phase;               // desfase = NO se alinean
-        const x = Math.cos(ang)*r;
-        const z = Math.sin(ang)*r;
-
-        const img = new Image();
-        img.src = FOTOS[i];
-        img.alt = 'foto';
-        img.onerror = () => img.remove();
-
-        // ligera variación para romper líneas perfectas
-        const wiggle = Math.sin(ang*2) * Math.min(20, minSide*0.02);
-        img.style.transform = `translate3d(${x}px, ${y + wiggle}px, ${z}px) rotateY(${ang}rad)`;
-        ring.appendChild(img);
+      // Añadir frases al grupo como CSS3DObjects
+      for (let i = 0; i < frases.length; i++) {
+        const texto = frases[i];
+        const pos = frasePositions[i] || {x:0, y:0, z:0};
+        // Crear elemento div para la frase
+        const div = document.createElement('div');
+        div.className = 'phrase';
+        div.textContent = texto;
+        // Establecer tamaño mínimo para el div (opcional, según contenido)
+        div.style.padding = "5px 10px";
+        // Crear CSS3DObject a partir del div
+        const cssObject = new THREE.CSS3DObject(div);
+        cssObject.position.set(pos.x, pos.y, pos.z);
+        // Añadir al grupo
+        group.add(cssObject);
       }
+
+      // Añadir fotos al grupo como CSS3DObjects (en forma de elementos <img>)
+      for (let f of fotos) {
+        const img = document.createElement('img');
+        img.className = 'photo';
+        img.src = f.url;
+        // Se puede ajustar el tamaño de imagen para que todas tengan dimensiones similares
+        img.style.width = "150px";
+        img.style.borderRadius = "10px";
+        img.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
+        // Crear objeto CSS3D
+        const photoObject = new THREE.CSS3DObject(img);
+        // Calcular posición 3D a partir de ángulo, radio y altura (y)
+        const x = f.radius * Math.cos(f.angleRad);
+        const z = f.radius * Math.sin(f.angleRad);
+        photoObject.position.set(x, f.y, z);
+        // Opcional: orientar cada foto hacia el centro (rotación para que miren a la cámara)
+        // Calculamos ángulo hacia el centro en el plano XZ y rotamos en Y
+        photoObject.rotation.y = -f.angleRad;
+        // Añadir al grupo
+        group.add(photoObject);
+      }
+
+      // Manejar clic en pantalla de inicio para iniciar animaciones
+      const startScreen = document.getElementById("start-screen");
+      startScreen.addEventListener('click', () => {
+        startScreen.style.display = 'none';  // ocultar HUD de inicio
+      });
+
+      // Ajustar escena en caso de redimensionamiento de ventana
+      window.addEventListener('resize', onWindowResize);
     }
 
-    // Giro suave
-    let ry=0; setInterval(()=>{ ry+=.03;
-      cloud.style.transform=`rotateX(6deg) rotateY(${ry}rad)`; }, 50);
+    function onWindowResize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
 
-    // Iniciar y mantener responsive
-    layoutFotos();
-    addEventListener('resize', layoutFotos);
+    // Animación de rotación suave
+    function animate() {
+      requestAnimationFrame(animate);
+      // Rotar lentamente el grupo completo de frases+fotos
+      group.rotation.y += 0.001;  // velocidad de rotación suave
+      renderer.render(scene, camera);
+    }
   </script>
 </body>
 </html>
