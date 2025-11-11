@@ -18,33 +18,29 @@
 
     /* Corazones */
     .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0 }
-    .heart{
-      position:absolute; font-size:14px; opacity:.35;
-      animation:floatUp linear infinite;
-      filter: drop-shadow(0 0 6px rgba(255,56,120,.35));
-    }
-    @keyframes floatUp{
-      from{ transform:translateY(110vh) scale(.8) rotate(0) }
-      to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) }
-    }
+    .heart{ position:absolute; font-size:14px; opacity:.35; animation:floatUp linear infinite;
+      filter: drop-shadow(0 0 6px rgba(255,56,120,.35)); }
+    @keyframes floatUp{ from{ transform:translateY(110vh) scale(.8) rotate(0) }
+                        to{ transform:translateY(-15vh) scale(1.4) rotate(360deg) } }
 
     /* Escena 3D */
     .space{ position:fixed; inset:0; display:grid; place-items:center; perspective:900px; z-index:1 }
     .cloud{
       position:relative; transform-style:preserve-3d;
-      /* ligero empuje hacia arriba para evitar “techo” vacío */
       transform: translateY(-3vh);
       animation:spin 55s linear infinite;
     }
-    @keyframes spin{ from{ transform:translateY(-3vh) rotateX(4deg) rotateY(0) } to{ transform:translateY(-3vh) rotateX(4deg) rotateY(360deg) } }
+    @keyframes spin{ from{ transform:translateY(-3vh) rotateX(4deg) rotateY(0) }
+                     to{   transform:translateY(-3vh) rotateX(4deg) rotateY(360deg) } }
 
+    /* Frases (NO se tocan) */
     .phrase{
       position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.92;
       text-shadow:0 0 12px rgba(140,200,255,.25);
       font-size: clamp(12px, 2.2vw, 18px);
     }
 
-    /* Anillos de fotos */
+    /* Fotos */
     .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
     .ring img{
       width:120px; height:120px; object-fit:cover; border-radius:18px;
@@ -77,18 +73,14 @@
   </style>
 </head>
 <body>
-  <!-- Corazones -->
   <div class="hearts" id="hearts"></div>
 
-  <!-- Escena 3D -->
   <div class="space">
     <div class="cloud" id="cloud">
-      <div class="ring" id="ringTop"></div>
-      <div class="ring" id="ringBottom"></div>
+      <div class="ring" id="ring"></div>
     </div>
   </div>
 
-  <!-- Pantalla inicial -->
   <div class="hud" id="hud">
     <div class="card">
       <h1 class="title">Toca para empezar ✨</h1>
@@ -122,12 +114,12 @@
     ];
     // ===== FIN PERSONALIZA =====
 
-    // Ocultar HUD
+    // HUD
     document.getElementById('btnStart').addEventListener('click',()=>{
       document.getElementById('hud').classList.add('hide');
     });
 
-    // Corazones flotando
+    // Corazones
     const heartC = document.getElementById('hearts');
     function spawnHeart(){
       const h = document.createElement('div');
@@ -140,12 +132,11 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // === Distribución homogénea de FRASES (6 niveles de altura) ===
+    // ===== Frases (NO modificar distribución pedida) =====
     const cloud = document.getElementById('cloud');
     (function placePhrases(){
-      const R = Math.min(innerWidth, innerHeight) * 0.46; // radio de frases
+      const R = Math.min(innerWidth, innerHeight) * 0.46;
       const levels = 6;
-      // altura uniforme desde -38% a +28% de la pantalla
       const minY = -innerHeight*0.38, maxY = innerHeight*0.28;
       for(let i=0;i<FRASES.length;i++){
         const el = document.createElement('div');
@@ -153,35 +144,46 @@
         const ang = (i/FRASES.length)*Math.PI*2;
         const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
         const tier = i % levels;
-        const y = minY + (tier/(levels-1))*(maxY-minY) + (Math.sin(ang*3)*8); // jitter suave
+        const y = minY + (tier/(levels-1))*(maxY-minY) + (Math.sin(ang*3)*8);
         el.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
         cloud.appendChild(el);
       }
     })();
 
-    // === Dos anillos de FOTOS (arriba/abajo) bien dentro del viewport ===
-    const topRing = document.getElementById('ringTop');
-    const bottomRing = document.getElementById('ringBottom');
+    // ===== NUEVA DISTRIBUCIÓN DE FOTOS (3 anillos escalonados, sin montarse) =====
+    const ring = document.getElementById('ring');
     const N = FOTOS.length;
-    const baseR = Math.min(innerWidth, innerHeight) * 0.30;   // radio responsivo
-    const yOffset = Math.min(innerHeight, 900) * 0.12;        // separación vertical (±12% pantalla)
+    const minSide = Math.min(innerWidth, innerHeight);
 
-    FOTOS.forEach((src,i)=>{
-      const ang = (i/N)*Math.PI*2;
-      const x = Math.cos(ang)*baseR, z = Math.sin(ang)*baseR;
-      // anillo superior
-      const img1 = new Image(); img1.src = src; img1.alt='foto';
-      img1.style.transform = `translate3d(${x}px, ${-yOffset + Math.sin(ang*2)*10}px, ${z}px) rotateY(${ang}rad)`;
-      topRing.appendChild(img1);
-      // anillo inferior (desfasado)
-      const img2 = new Image(); img2.src = src; img2.alt='foto';
-      const ang2 = ang + Math.PI/N;
-      const x2 = Math.cos(ang2)*baseR, z2 = Math.sin(ang2)*baseR;
-      img2.style.transform = `translate3d(${x2}px, ${yOffset + Math.cos(ang2*2)*10}px, ${z2}px) rotateY(${ang2}rad)`;
-      bottomRing.appendChild(img2);
-    });
+    // Radios y alturas por anillo (arriba/medio/abajo)
+    const R0 = minSide * 0.28;   // radio base
+    const rings = [
+      { r: R0*0.96, y: -minSide*0.14, phase: 0.00 }, // superior
+      { r: R0*1.04, y:  0,            phase: Math.PI/(N+1) }, // medio, desfasado
+      { r: R0*0.96, y:  minSide*0.14, phase: Math.PI/(2*(N+1)) } // inferior, otro desfase
+    ];
 
-    // Giro suave
+    // Repartimos las fotos en 3 anillos de forma intercalada
+    for(let i=0;i<N;i++){
+      const ringIdx = i % rings.length;
+      const order   = Math.floor(i / rings.length); // posición dentro del anillo
+      const itemsInThisRing = Math.ceil((N - ringIdx + rings.length -1) / rings.length);
+
+      const { r, y, phase } = rings[ringIdx];
+      const ang = (order/itemsInThisRing)*Math.PI*2 + phase;
+
+      const x = Math.cos(ang)*r;
+      const z = Math.sin(ang)*r;
+
+      const img = new Image();
+      img.src = FOTOS[i]; img.alt = 'foto';
+      // ligera ondulación para que no queden en la misma “línea”
+      const wiggle = Math.sin(ang*2)*8;
+      img.style.transform = `translate3d(${x}px, ${y+wiggle}px, ${z}px) rotateY(${ang}rad)`;
+      ring.appendChild(img);
+    }
+
+    // Giro suave (mantiene el look)
     let ry=0; setInterval(()=>{ ry+=.03;
       cloud.style.transform=`translateY(-3vh) rotateX(4deg) rotateY(${ry}rad)`; }, 50);
 
