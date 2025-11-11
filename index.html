@@ -6,7 +6,7 @@
   <title>Para ti ❤️</title>
   <meta name="description" content="Sorpresita interactiva con fotos y frases."/>
   <style>
-    :root{ --bg:#05070d; --txt:#e6f6ff; --muted:#8aa1b1 }
+    :root{ --bg:#05070d; --txt:#e6f6ff; --muted:#8aa1b1; --img:110px }
     *{ box-sizing:border-box }
     html,body{ height:100%; margin:0 }
     body{
@@ -40,10 +40,10 @@
       font-size: clamp(12px, 2.2vw, 18px);
     }
 
-    /* Fotos */
+    /* Fotos (tamaño por variable --img) */
     .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
     .ring img{
-      width:120px; height:120px; object-fit:cover; border-radius:18px;
+      width:var(--img); height:var(--img); object-fit:cover; border-radius:18px;
       border:2px solid rgba(255,255,255,.15); box-shadow:0 10px 30px rgba(0,0,0,.35);
       background:#111; will-change: transform;
       animation: bob 4s ease-in-out infinite;
@@ -67,7 +67,6 @@
     .hide{ display:none }
 
     @media (max-width:480px){
-      .ring img{ width:88px; height:88px } /* más compactas en móvil */
       .title{ font-size:22px }
     }
   </style>
@@ -93,7 +92,7 @@
     // ======= PERSONALIZA AQUI =======
     const FOTOS = [
       'fotos/1.jpg','fotos/2.jpg','fotos/3.jpg',
-      'fotos/4.jpg','fotos/5.jpg','fotos/6.png.jpg'
+      'fotos/4.jpg','fotos/5.jpg','fotos/6.png.jpg' // si este nombre no existe, el script lo omite
     ];
 
     const FRASES = [
@@ -132,7 +131,7 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // ===== Frases (NO modificar distribución pedida) =====
+    // Frases (igual que antes)
     const cloud = document.getElementById('cloud');
     (function placePhrases(){
       const R = Math.min(innerWidth, innerHeight) * 0.46;
@@ -150,45 +149,82 @@
       }
     })();
 
-    // ===== NUEVA DISTRIBUCIÓN DE FOTOS (3 anillos escalonados, sin montarse) =====
+    // ============ NUEVO LAYOUT DE FOTOS (SIN SOLAPES) ============
     const ring = document.getElementById('ring');
-    const N = FOTOS.length;
-    const minSide = Math.min(innerWidth, innerHeight);
 
-    // Radios y alturas por anillo (arriba/medio/abajo)
-    const R0 = minSide * 0.28;   // radio base
-    const rings = [
-      { r: R0*0.96, y: -minSide*0.14, phase: 0.00 }, // superior
-      { r: R0*1.04, y:  0,            phase: Math.PI/(N+1) }, // medio, desfasado
-      { r: R0*0.96, y:  minSide*0.14, phase: Math.PI/(2*(N+1)) } // inferior, otro desfase
-    ];
+    function layoutPhotos(){
+      // limpiar
+      ring.innerHTML = '';
 
-    // Repartimos las fotos en 3 anillos de forma intercalada
-    for(let i=0;i<N;i++){
-      const ringIdx = i % rings.length;
-      const order   = Math.floor(i / rings.length); // posición dentro del anillo
-      const itemsInThisRing = Math.ceil((N - ringIdx + rings.length -1) / rings.length);
+      const N = FOTOS.length;
+      const minSide = Math.min(innerWidth, innerHeight);
 
-      const { r, y, phase } = rings[ringIdx];
-      const ang = (order/itemsInThisRing)*Math.PI*2 + phase;
+      // tamaño ideal por cantidad y pantalla (con límites)
+      const ideal = Math.min(130, Math.max(78, Math.floor(minSide / (Math.sqrt(N)*1.15 + 2))));
+      document.documentElement.style.setProperty('--img', ideal+'px');
 
-      const x = Math.cos(ang)*r;
-      const z = Math.sin(ang)*r;
+      // cilindro
+      const baseR = Math.max(160, Math.floor(minSide * 0.28));
+      const verticalSpace = Math.min(innerHeight*0.52, ideal * 1.6 * Math.max(2, Math.ceil(N/6)));
+      const topY = -verticalSpace/2, bottomY = verticalSpace/2;
 
-      const img = new Image();
-      img.src = FOTOS[i]; img.alt = 'foto';
-      // ligera ondulación para que no queden en la misma “línea”
-      const wiggle = Math.sin(ang*2)*8;
-      img.style.transform = `translate3d(${x}px, ${y+wiggle}px, ${z}px) rotateY(${ang}rad)`;
-      ring.appendChild(img);
+      // decidimos cuántos anillos caben verticalmente
+      const ringGap = ideal * 1.25; // separación vertical entre anillos
+      const ringsCount = Math.max(2, Math.min(6, Math.floor(verticalSpace / ringGap)));
+      const rings = [];
+
+      for(let i=0;i<ringsCount;i++){
+        const t = (ringsCount===1)?0.5 : i/(ringsCount-1);
+        const y = topY + t * (bottomY - topY);
+        // alterna radios sutilmente para que desde cámara no se encimen
+        const r = baseR * (1 + 0.06 * Math.sin(i));
+        rings.push({y,r,items:0});
+      }
+
+      // capacidad por anillo según arco mínimo (no solapar)
+      const minArcFactor = 1.25; // 1.25x del ancho
+      rings.forEach(rg=>{
+        const circumference = 2*Math.PI*rg.r;
+        rg.capacity = Math.max(3, Math.floor(circumference / (ideal*minArcFactor)));
+      });
+
+      // repartir fotos equilibrado
+      let idx = 0;
+      for(const foto of FOTOS){
+        // escoger anillo con menor carga relativa
+        let target = rings[0], best = Infinity;
+        for(const rg of rings){
+          const load = rg.items / rg.capacity;
+          if(load < best){ best = load; target = rg; }
+        }
+        const order = target.items; target.items++;
+
+        const angStep = (2*Math.PI) / target.capacity;
+        const ang = order * angStep + (best===0? Math.PI/ (idx+2) : 0);
+
+        const x = Math.cos(ang)*target.r;
+        const z = Math.sin(ang)*target.r;
+
+        const img = new Image();
+        img.src = foto; img.alt = 'foto';
+        img.onerror = ()=> img.remove(); // si falta una imagen, se omite sin romper
+        img.style.transform = `translate3d(${x}px, ${target.y}px, ${z}px) rotateY(${ang}rad)`;
+        ring.appendChild(img);
+
+        idx++;
+      }
     }
 
-    // Giro suave (mantiene el look)
+    // Giro suave
     let ry=0; setInterval(()=>{ ry+=.03;
       cloud.style.transform=`translateY(-3vh) rotateX(4deg) rotateY(${ry}rad)`; }, 50);
 
-    // Recalcular al cambiar tamaño
-    addEventListener('resize', ()=>location.reload());
+    // Inicializar + responsive sin recargar
+    layoutPhotos();
+    addEventListener('resize', ()=>{
+      // recalcular sin perder la animación ni recargar
+      layoutPhotos();
+    });
   </script>
 </body>
 </html>
