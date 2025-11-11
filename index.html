@@ -52,7 +52,7 @@
       will-change: transform;
     }
 
-    /* Fotos (anillo) */
+    /* Fotos (anillos) */
     .ring{ position:absolute; inset:0; transform-style:preserve-3d }
     .ring img{
       width:120px; height:120px; object-fit:cover; border-radius:18px;
@@ -92,7 +92,7 @@
       <!-- Grupo común centrado -->
       <div class="origin" id="origin">
         <div class="ring" id="ring"></div>
-        <!-- Aquí se insertan las frases -->
+        <!-- aquí se insertan las frases -->
       </div>
     </div>
   </div>
@@ -136,7 +136,7 @@
       document.getElementById('hud').classList.add('hide');
     });
 
-    // Corazones
+    // Corazones flotando
     const heartC = document.getElementById('hearts');
     function spawnHeart(){
       const h = document.createElement('div');
@@ -152,69 +152,63 @@
     // Grupo común
     const origin = document.getElementById('origin');
 
-    // ===== FRASES (guardamos posiciones y hacemos billboard) =====
+    // ===== FRASES (distribución espaciada) =====
     const phraseNodes = [];
     (function placePhrases(){
-      const Rmin  = Math.min(innerWidth, innerHeight);
-      const R1    = Rmin * 0.45;    // radio interno mayor para separar más
-      const R2    = Rmin * 0.55;    // radio externo
-      const levels = [-210,-140,-70,0,70,140,210]; // alturas ampliadas para menos solapes
-      const phi   = Math.PI * (3 - Math.sqrt(5)); // ángulo áureo
+      const Rmin   = Math.min(innerWidth, innerHeight);
+      const radii  = [Rmin * 0.50, Rmin * 0.65];    // radios más grandes para separar más
+      const levels = [-220,-155,-90,-25,40,105,170,235]; // más niveles de altura
+      const phi    = Math.PI * (3 - Math.sqrt(5));   // ángulo áureo
 
       for(let i=0;i<FRASES.length;i++){
         const el = document.createElement('div');
-        el.className = 'phrase';
+        el.className='phrase';
         el.textContent = FRASES[i];
-
-        // alternamos radios para romper patrones
-        const useR = (i % 2 === 0) ? R1 : R2;
-        const ang  = i * phi;
-        const x    = Math.cos(ang) * useR;
-        const z    = Math.sin(ang) * useR;
-        const y    = levels[i % levels.length] + Math.sin(ang*2) * Math.min(18, Rmin*0.02);
-
-        // guardamos posición base
-        phraseNodes.push({el, x, y, z});
+        const useR  = radii[i % radii.length];
+        const ang   = i * phi;
+        const x     = Math.cos(ang) * useR;
+        const z     = Math.sin(ang) * useR;
+        const y     = levels[i % levels.length] + Math.sin(ang*2) * Math.min(22, Rmin*0.025);
+        phraseNodes.push({el,x,y,z});
         origin.appendChild(el);
       }
     })();
 
-    // ===== FOTOS (anillo a 240 px, levantado 12 % de la altura) =====
+    // ===== FOTOS (dos anillos escalonados) =====
     (function placePhotos(){
       const ring = document.getElementById('ring');
       const N    = FOTOS.length;
-      const R    = 240; // radio fijo
-      const yOff = -innerHeight * 0.12; // subir 12% la altura del anillo
+      // Dos niveles: uno más alto y pequeño, otro más bajo y grande
+      const rings = [
+        { r: 200, y: -innerHeight*0.25, phase: 0 },
+        { r: 280, y: -innerHeight*0.07, phase: Math.PI / N }
+      ];
       for(let i=0;i<N;i++){
+        const { r, y, phase } = rings[i % rings.length];
+        const order = Math.floor(i / rings.length);
+        const itemsPerRing = Math.ceil((N - (i % rings.length)) / rings.length);
+        const ang = (order / itemsPerRing) * Math.PI * 2 + phase;
+        const x   = Math.cos(ang) * r;
+        const z   = Math.sin(ang) * r;
         const img = new Image();
-        img.src = FOTOS[i];
-        img.alt = 'foto';
-        const ang = (i / N) * Math.PI * 2;
-        const x   = Math.cos(ang) * R;
-        const z   = Math.sin(ang) * R;
-        img.style.transform = `translate3d(${x}px,${yOff}px,${z}px) rotateY(${ang}rad)`;
+        img.src = FOTOS[i]; img.alt = 'foto';
+        img.style.transform = `translate3d(${x}px,${y}px,${z}px) rotateY(${ang}rad)`;
         ring.appendChild(img);
       }
     })();
 
     // ===== Animación =====
     let ry = 0;
-    const tilt  = 6 * Math.PI / 180; // 6 grados
-    const SPEED = 0.003; // aún más lento
+    const tilt  = 6 * Math.PI / 180;   // inclinación fija
+    const SPEED = 0.002;               // velocidad de giro muy lenta
 
     function tick(){
       ry += SPEED;
-      // rotamos el grupo común
-      origin.style.transform =
-        `translate(-50%,-50%) rotateX(${tilt}rad) rotateY(${ry}rad)`;
-
-      // billboard: cada frase se contrarota para mirar a la cámara
+      origin.style.transform = `translate(-50%,-50%) rotateX(${tilt}rad) rotateY(${ry}rad)`;
       const inv = -ry;
       for(const p of phraseNodes){
-        p.el.style.transform =
-          `translate3d(${p.x}px,${p.y}px,${p.z}px) rotateY(${inv}rad)`;
+        p.el.style.transform = `translate3d(${p.x}px,${p.y}px,${p.z}px) rotateY(${inv}rad)`;
       }
-
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
