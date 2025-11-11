@@ -33,14 +33,22 @@
     .cloud{ position:relative; transform-style:preserve-3d; animation:spin 55s linear infinite }
     @keyframes spin{ from{ transform:rotateX(6deg) rotateY(0) } to{ transform:rotateX(6deg) rotateY(360deg) } }
 
-    /* Frases (SE MANTIENEN TAL CUAL) */
+    /* Frases (mejor legibilidad y brillo sutil) */
     .phrase{
-      position:absolute; color:var(--txt); font-weight:600; white-space:nowrap; opacity:.9;
-      text-shadow:0 0 12px rgba(140,200,255,.25);
-      font-size: clamp(12px, 2.2vw, 18px);
+      position:absolute;
+      color:var(--txt);
+      font-weight:600;
+      white-space:nowrap;
+      opacity:.95;
+      text-shadow:
+        0 0 2px rgba(0,0,0,.4),
+        0 0 10px rgba(140,200,255,.3);
+      letter-spacing:.2px;
+      font-size: clamp(12px, 2.4vw, 18px);
+      transform-style:preserve-3d;
     }
 
-    /* Fotos */
+    /* Fotos (SIN CAMBIOS en su layout) */
     .ring{ position:absolute; inset:0; display:grid; place-items:center; transform-style:preserve-3d }
     .ring img{
       width:120px; height:120px; object-fit:cover; border-radius:18px;
@@ -115,12 +123,12 @@
     ];
     // ===== FIN PERSONALIZA =====
 
-    // Botón: ocultar HUD
+    // HUD
     document.getElementById('btnStart').addEventListener('click',()=>{
       document.getElementById('hud').classList.add('hide');
     });
 
-    // Corazones flotando
+    // Corazones
     const heartC = document.getElementById('hearts');
     function spawnHeart(){
       const h = document.createElement('div');
@@ -133,27 +141,44 @@
     for(let i=0;i<40;i++) setTimeout(spawnHeart, i*250);
     setInterval(spawnHeart, 600);
 
-    // === FRASES (tal cual tu distribución previa) ===
+    // === FRASES: distribución bonita (2 radios, 7 alturas y fases distintas) ===
     const cloud = document.getElementById('cloud');
     (function placePhrases(){
-      const R = Math.min(innerWidth, innerHeight) * 0.42;
-      const levels = [-140,-70,0,70,140];
+      const Rmin = Math.min(innerWidth, innerHeight);
+      const R1 = Rmin * 0.40;  // radio interno
+      const R2 = Rmin * 0.48;  // radio externo (para intercalar)
+      const levels = [-180,-120,-60,0,60,120,180]; // más alturas -> menos choques
+      const phi = Math.PI * (3 - Math.sqrt(5));    // ángulo áureo para mejor dispersión
+
       for(let i=0;i<FRASES.length;i++){
         const el = document.createElement('div');
-        el.className='phrase'; el.textContent = FRASES[i];
-        const ang = (i/FRASES.length)*Math.PI*2;
-        const x = Math.cos(ang)*R, z = Math.sin(ang)*R;
+        el.className='phrase';
+        el.textContent = FRASES[i];
+
+        // alternar radios y fases para romper patrones
+        const useR = (i % 2 === 0) ? R1 : R2;
+        const ang  = i * phi; // buena separación angular
+        const x = Math.cos(ang) * useR;
+        const z = Math.sin(ang) * useR;
         const y = levels[i % levels.length];
-        el.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+
+        // pequeña variación extra para evitar filas perfectas
+        const jitter = Math.sin(ang*2) * Math.min(14, Rmin*0.015);
+        el.style.transform = `translate3d(${x}px, ${y + jitter}px, ${z}px)`;
+
+        // sutil parpadeo de profundidad (más lejano = menos opaco)
+        const depthFade = 0.85 + 0.15 * (z / R2);
+        el.style.opacity = Math.min(1, Math.max(0.55, depthFade)).toFixed(2);
+
         cloud.appendChild(el);
       }
     })();
 
-    // === FOTOS (ubicación EXACTA del código que indicaste) ===
+    // === FOTOS (exactamente tu anillo correcto) ===
     const ring = document.getElementById('ring');
     (function placePhotos(){
       const N = FOTOS.length;
-      const R = 240; // radio para las fotos (según tu código “correcto”)
+      const R = 240; // radio fijo
       for(let i=0;i<N;i++){
         const img = new Image();
         img.src = FOTOS[i]; img.alt = 'foto';
